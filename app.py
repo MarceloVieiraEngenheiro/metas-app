@@ -231,31 +231,29 @@ def index():
         }
     )
 
-@app.route('/goal/new', methods=['GET', 'POST'])
+@app.route('/goal/<int:goal_id>/edit', methods=['GET', 'POST'])
 @login_required
-def new_goal():
+def edit_goal(goal_id):
     user = get_current_user()
+    goal = Goal.query.filter_by(id=goal_id, user_id=user.id).first_or_404()
     if request.method == 'POST':
         deadline_str = request.form.get('deadline', '').strip()
-        deadline = datetime.strptime(deadline_str, '%Y-%m-%d').date() if deadline_str else None
-        goal = Goal(
-            user_id=user.id,
-            title=request.form['title'].strip(),
-            description=request.form.get('description', '').strip(),
-            category=request.form.get('category', 'Pessoal'),
-            year=int(request.form.get('year', date.today().year)),
-            deadline=deadline,
-            priority=request.form.get('priority', 'media')
-        )
-        db.session.add(goal)
-        db.session.flush()
+        goal.deadline = datetime.strptime(deadline_str, '%Y-%m-%d').date() if deadline_str else None
+        start_date_str = request.form.get('start_date', '').strip()
+        goal.start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
+        goal.title = request.form['title'].strip()
+        goal.description = request.form.get('description', '').strip()
+        goal.category = request.form.get('category', 'Pessoal')
+        goal.year = int(request.form.get('year', date.today().year))
+        goal.priority = request.form.get('priority', 'media')
+        ChecklistItem.query.filter_by(goal_id=goal.id).delete()
         for text in request.form.getlist('checklist[]'):
             if text.strip():
                 db.session.add(ChecklistItem(goal_id=goal.id, text=text.strip()))
         db.session.commit()
-        flash('Meta criada com sucesso!', 'success')
+        flash('Meta atualizada!', 'success')
         return redirect(url_for('index'))
-    return render_template('form.html', goal=None)
+    return render_template('form.html', goal=goal)
 
 @app.route('/goal/<int:goal_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -398,6 +396,10 @@ def not_found(e):
 
 with app.app_context():
     db.create_all()
-
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    from sqlalchemy import text, inspect
+    inspector = inspect(db.engine)
+    columns = [c['name'] for c in inspector.get_columns('goals')]
+    if 'start_date' not in columns:
+        db.session.execute(text('ALTER TABLE goals ADD COLUMN start_date DATE'))
+        db.session.commit()
+        print('Coluna start_date adicionada com sucesso!')
