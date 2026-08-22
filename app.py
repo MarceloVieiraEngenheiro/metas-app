@@ -255,28 +255,6 @@ def edit_goal(goal_id):
         return redirect(url_for('index'))
     return render_template('form.html', goal=goal)
 
-@app.route('/goal/<int:goal_id>/edit', methods=['GET', 'POST'])
-@login_required
-def edit_goal(goal_id):
-    user = get_current_user()
-    goal = Goal.query.filter_by(id=goal_id, user_id=user.id).first_or_404()
-    if request.method == 'POST':
-        deadline_str = request.form.get('deadline', '').strip()
-        goal.deadline = datetime.strptime(deadline_str, '%Y-%m-%d').date() if deadline_str else None
-        goal.title = request.form['title'].strip()
-        goal.description = request.form.get('description', '').strip()
-        goal.category = request.form.get('category', 'Pessoal')
-        goal.year = int(request.form.get('year', date.today().year))
-        goal.priority = request.form.get('priority', 'media')
-        ChecklistItem.query.filter_by(goal_id=goal.id).delete()
-        for text in request.form.getlist('checklist[]'):
-            if text.strip():
-                db.session.add(ChecklistItem(goal_id=goal.id, text=text.strip()))
-        db.session.commit()
-        flash('Meta atualizada!', 'success')
-        return redirect(url_for('index'))
-    return render_template('form.html', goal=goal)
-
 @app.route('/goal/<int:goal_id>/delete', methods=['POST'])
 @login_required
 def delete_goal(goal_id):
