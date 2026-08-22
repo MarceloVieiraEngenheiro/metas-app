@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="form-card">
+                <h2 class="fw-bold mb-4">
+                    {% if goal %}
+                    <i class="fas fa-edit text-primary me-2"></i>Editar Meta
+                    {% else %}
+                    <i class="fas fa-plus-circle text-primary me-2"></i>Nova Meta
+                    {% endif %}
+                </h2>
+
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Titulo da meta *</label>
+                        <input type="text" name="title" class="form-control" required
+                               value="{{ goal.title if goal else '' }}"
+                               placeholder="Ex: Concluir curso de ingles">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Descricao</label>
+                        <textarea name="description" class="form-control" rows="2"
+                                  placeholder="Detalhes da meta...">{{ goal.description if goal else '' }}</textarea>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Categoria</label>
+                            <select name="category" class="form-select">
+                                {% for cat, color in categories.items() %}
+                                <option value="{{ cat }}" {{ 'selected' if goal and goal.category == cat else '' }}>{{ cat }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Ano</label>
+                            <input type="number" name="year" class="form-control"
+                                   value="{{ goal.year if goal else now.year }}" min="2020" max="2050">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Prazo</label>
+                            <input type="date" name="deadline" class="form-control"
+                                   value="{{ goal.deadline.strftime('%Y-%m-%d') if goal and goal.deadline else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Prioridade</label>
+                            <div class="d-flex gap-3 pt-2">
+                                {% for p, color in priorities.items() %}
+                                <div class="form-check">
+                                    <input type="radio" name="priority" value="{{ p }}" class="form-check-input"
+                                           id="prio-{{ p }}" {{ 'checked' if (goal and goal.priority == p) or (not goal and p == 'media') else '' }}>
+                                    <label class="form-check-label" for="prio-{{ p }}">
+                                        <span class="badge rounded-pill text-white" style="background-color: {{ color }}">{{ p|capitalize }}</span>
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold"><i class="fas fa-list-check me-1"></i> Checklist</label>
+                        <div id="checklist-container">
+                            {% if goal and goal.checklist_items %}
+                                {% for item in goal.checklist_items %}
+                                <div class="d-flex align-items-center mb-2 checklist-row">
+                                    <input type="text" name="checklist[]" class="form-control"
+                                           value="{{ item.text }}">
+                                    <button type="button" class="btn btn-outline-danger btn-sm ms-2"
+                                            onclick="this.parentElement.remove()">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm rounded-pill mt-1"
+                                onclick="addChecklistItem()">
+                            <i class="fas fa-plus me-1"></i> Adicionar item
+                        </button>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary rounded-pill px-4">
+                            <i class="fas fa-save me-1"></i> {{ 'Salvar alteracoes' if goal else 'Criar meta' }}
+                        </button>
+                        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary rounded-pill px-4">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function addChecklistItem(text = '') {
+    const container = document.getElementById('checklist-container');
+    const row = document.createElement('div');
+    row.className = 'd-flex align-items-center mb-2 checklist-row';
+    row.innerHTML =
+        '<input type="text" name="checklist[]" class="form-control" value="' + text + '" placeholder="Novo item da checklist...">' +
+        '<button type="button" class="btn btn-outline-danger btn-sm ms-2" onclick="this.parentElement.remove()">' +
+        '<i class="fas fa-times"></i></button>';
+    container.appendChild(row);
+}
+{% if not goal %}
+addChecklistItem();
+{% endif %}
+</script>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="form-card">
+                <h2 class="fw-bold mb-4 text-center">
+                    <i class="fas fa-user-plus text-primary me-2"></i>Criar Conta
+                </h2>
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Nome</label>
+                        <input type="text" name="name" class="form-control" required
+                               placeholder="Seu nome">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Email</label>
+                        <input type="email" name="email" class="form-control" required
+                               placeholder="seu@email.com">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Senha</label>
+                        <input type="password" name="password" class="form-control" required
+                               placeholder="Minimo 6 caracteres">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Confirmar Senha</label>
+                        <input type="password" name="confirm" class="form-control" required
+                               placeholder="Repita a senha">
+                    </div>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 w-100">
+                        <i class="fas fa-user-plus me-1"></i> Cadastrar
+                    </button>
+                </form>
+                <hr class="my-4">
+                <p class="text-center mb-0 text-muted">
+                    Ja tem conta? <a href="{{ url_for('login') }}" class="text-decoration-none fw-semibold">Entrar</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

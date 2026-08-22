@@ -1,0 +1,263 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="hero-section">
+    <div class="container">
+        <h1><i class="fas fa-calendar-star me-2"></i>Metas de {{ current_year }}</h1>
+        <div class="overall-progress">
+            <div class="progress-bar-container flex-grow-1 {% if stats.avg_progress == 100 %}progress-complete{% elif stats.avg_progress >= 67 %}progress-high{% elif stats.avg_progress >= 34 %}progress-mid{% else %}progress-low{% endif %}">
+                <div class="progress-bar-fill" style="width: {{ stats.avg_progress }}%;"></div>
+            </div>
+            <span class="fw-bold">{{ stats.avg_progress }}%</span>
+        </div>
+        <div class="hero-stats">
+            <i class="fas fa-bullseye"></i> {{ stats.total }} metas &middot;
+            <i class="fas fa-check-circle text-success"></i> {{ stats.completed }} concluidas &middot;
+            <i class="fas fa-exclamation-circle text-warning"></i> {{ stats.in_progress }} em andamento &middot;
+            <i class="fas fa-times-circle text-danger"></i> {{ stats.overdue }} atrasadas
+        </div>
+    </div>
+</div>
+
+<div class="container pb-4">
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="stats-card" style="border-left-color: #0984E3;">
+                <i class="fas fa-bullseye" style="color: #0984E3;"></i>
+                <h3>{{ stats.total }}</h3>
+                <p>Total de Metas</p>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stats-card" style="border-left-color: #00B894;">
+                <i class="fas fa-check-circle" style="color: #00B894;"></i>
+                <h3>{{ stats.completed }}</h3>
+                <p>Concluidas</p>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stats-card" style="border-left-color: #FDCB6E;">
+                <i class="fas fa-spinner" style="color: #FDCB6E;"></i>
+                <h3>{{ stats.in_progress }}</h3>
+                <p>Em Andamento</p>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stats-card" style="border-left-color: #FF7675;">
+                <i class="fas fa-exclamation-triangle" style="color: #FF7675;"></i>
+                <h3>{{ stats.overdue }}</h3>
+                <p>Atrasadas</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="filter-bar d-flex flex-wrap align-items-center gap-3">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="fw-semibold text-muted small me-1">Ano:</span>
+            {% for y in years %}
+            <a href="?year={{ y }}{% if current_category %}&category={{ current_category }}{% endif %}"
+               class="year-pill {% if y == current_year %}active{% endif %}">{{ y }}</a>
+            {% endfor %}
+        </div>
+        <div class="ms-auto">
+            <form method="GET" class="d-flex align-items-center gap-2" id="categoryForm">
+                <input type="hidden" name="year" value="{{ current_year }}">
+                <span class="fw-semibold text-muted small">Categoria:</span>
+                <select name="category" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                    <option value="">Todas</option>
+                    {% for cat, color in categories.items() %}
+                    <option value="{{ cat }}" {% if current_category == cat %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+    </div>
+
+    {% if goals %}
+    <div class="row g-4">
+        {% for goal in goals %}
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="goal-card" style="border-top-color: {{ categories[goal.category] }};" data-goal-card>
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    <span class="badge rounded-pill text-white" style="background-color: {{ categories[goal.category] }};">
+                        {{ goal.category }}
+                    </span>
+                    <span class="badge rounded-pill text-white" style="background-color: {{ priorities[goal.priority] }};">
+                        {{ goal.priority|capitalize }}
+                    </span>
+                    <span class="badge rounded-pill bg-{{ goal.status_class }} status-badge">{{ goal.status_label }}</span>
+                </div>
+
+                <h5 class="fw-bold mb-1">{{ goal.title }}</h5>
+                {% if goal.description %}
+                <p class="text-muted small mb-2">{{ goal.description }}</p>
+                {% endif %}
+
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <div class="progress-bar-container flex-grow-1 {% if goal.progress == 100 %}progress-complete{% elif goal.progress >= 67 %}progress-high{% elif goal.progress >= 34 %}progress-mid{% else %}progress-low{% endif %}">
+                        <div class="progress-bar-fill" style="width: {{ goal.progress }}%;"></div>
+                    </div>
+                    <span class="fw-bold small progress-percentage">{{ goal.progress }}%</span>
+                </div>
+
+                {% if goal.deadline %}
+                <div class="mb-2">
+                    {% if goal.is_overdue %}
+                        <i class="fas fa-exclamation-triangle text-danger"></i>
+                        <span class="text-danger fw-semibold small">Atrasada ha {{ -goal.days_left }} dia(s)</span>
+                    {% elif goal.days_left == 0 %}
+                        <i class="fas fa-clock text-warning"></i>
+                        <span class="text-warning fw-semibold small">Vence hoje!</span>
+                    {% elif goal.days_left <= 7 %}
+                        <i class="fas fa-clock text-warning"></i>
+                        <span class="text-warning small">Faltam {{ goal.days_left }} dia(s)</span>
+                    {% else %}
+                        <i class="fas fa-calendar text-muted"></i>
+                        <span class="text-muted small">Prazo: {{ goal.deadline.strftime('%d/%m/%Y') }}</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <div class="checklist-container">
+                    {% for item in goal.checklist_items %}
+                    <div class="checklist-item d-flex align-items-center" data-item-id="{{ item.id }}">
+                        <button class="checklist-toggle" data-item-id="{{ item.id }}">
+                            <i class="{{ 'fas fa-check-circle text-success' if item.completed else 'far fa-circle text-muted' }} fs-5"></i>
+                        </button>
+                        <span class="checklist-text ms-2 small {{ 'text-decoration-line-through text-muted' if item.completed else '' }}">{{ item.text }}</span>
+                        <button class="checklist-delete" data-item-id="{{ item.id }}">
+                            <i class="fas fa-times text-danger"></i>
+                        </button>
+                    </div>
+                    {% endfor %}
+                    {% if not goal.checklist_items %}
+                    <p class="text-muted small fst-italic mb-2">Nenhum item na checklist</p>
+                    {% endif %}
+
+                    <form class="add-checklist-form d-flex gap-1 mt-2" data-goal-id="{{ goal.id }}">
+                        <input type="text" class="form-control form-control-sm" placeholder="Adicionar item..." name="text">
+                        <button type="submit" class="btn btn-sm btn-primary rounded-pill px-2">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </form>
+                </div>
+
+                <div class="d-flex gap-2 mt-3 pt-3 border-top">
+                    <a href="{{ url_for('edit_goal', goal_id=goal.id) }}" class="btn btn-sm btn-outline-primary rounded-pill">
+                        <i class="fas fa-edit me-1"></i> Editar
+                    </a>
+                    <form action="{{ url_for('delete_goal', goal_id=goal.id) }}" method="POST" class="delete-goal-form">
+                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">
+                            <i class="fas fa-trash me-1"></i> Excluir
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-clipboard-list"></i>
+        <h3 class="fw-bold">Nenhuma meta ainda</h3>
+        <p class="mb-3">Crie sua primeira meta para {{ current_year }}.</p>
+        <a href="{{ url_for('new_goal') }}" class="btn btn-primary rounded-pill px-4">
+            <i class="fas fa-plus me-1"></i> Criar Meta
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updateCard(card, data) {
+    const container = card.querySelector('.progress-bar-container');
+    const fill = container.querySelector('.progress-bar-fill');
+    const pct = card.querySelector('.progress-percentage');
+    fill.style.width = data.progress + '%';
+    if (pct) pct.textContent = data.progress + '%';
+    const pclass = data.progress == 100 ? 'progress-complete' : data.progress >= 67 ? 'progress-high' : data.progress >= 34 ? 'progress-mid' : 'progress-low';
+    container.className = 'progress-bar-container flex-grow-1 ' + pclass;
+    const status = card.querySelector('.status-badge');
+    if (status) {
+        status.textContent = data.status;
+        status.className = 'badge rounded-pill bg-' + data.status_class + ' status-badge';
+    }
+}
+
+document.addEventListener('click', async function(e) {
+    const btn = e.target.closest('.checklist-toggle');
+    if (!btn) return;
+    const itemId = btn.dataset.itemId;
+    const item = btn.closest('.checklist-item');
+    const card = btn.closest('.goal-card');
+    try {
+        const res = await fetch('/api/checklist/' + itemId + '/toggle', { method: 'POST' });
+        const data = await res.json();
+        const icon = btn.querySelector('i');
+        if (data.completed) {
+            icon.className = 'fas fa-check-circle text-success fs-5';
+            item.querySelector('.checklist-text').classList.add('text-decoration-line-through', 'text-muted');
+        } else {
+            icon.className = 'far fa-circle text-muted fs-5';
+            item.querySelector('.checklist-text').classList.remove('text-decoration-line-through', 'text-muted');
+        }
+        updateCard(card, data);
+    } catch (err) { console.error(err); }
+});
+
+document.addEventListener('click', async function(e) {
+    const btn = e.target.closest('.checklist-delete');
+    if (!btn) return;
+    if (!confirm('Excluir este item?')) return;
+    const itemId = btn.dataset.itemId;
+    const item = btn.closest('.checklist-item');
+    const card = btn.closest('.goal-card');
+    try {
+        const res = await fetch('/api/checklist/' + itemId + '/delete', { method: 'POST' });
+        const data = await res.json();
+        item.remove();
+        updateCard(card, data);
+    } catch (err) { console.error(err); }
+});
+
+document.addEventListener('submit', async function(e) {
+    const form = e.target.closest('.add-checklist-form');
+    if (!form) return;
+    e.preventDefault();
+    const goalId = form.dataset.goalId;
+    const input = form.querySelector('input[name="text"]');
+    const text = input.value.trim();
+    if (!text) return;
+    const card = form.closest('.goal-card');
+    const container = form.parentElement;
+    try {
+        const res = await fetch('/api/goal/' + goalId + '/checklist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+        const emptyMsg = container.querySelector('.fst-italic');
+        if (emptyMsg) emptyMsg.remove();
+        const div = document.createElement('div');
+        div.className = 'checklist-item d-flex align-items-center';
+        div.dataset.itemId = data.id;
+        div.innerHTML = '<button class="checklist-toggle" data-item-id="' + data.id + '"><i class="far fa-circle text-muted fs-5"></i></button><span class="checklist-text ms-2 small">' + text + '</span><button class="checklist-delete" data-item-id="' + data.id + '"><i class="fas fa-times text-danger"></i></button>';
+        container.insertBefore(div, form);
+        input.value = '';
+        updateCard(card, data);
+    } catch (err) { console.error(err); }
+});
+
+document.addEventListener('submit', function(e) {
+    const form = e.target.closest('.delete-goal-form');
+    if (!form) return;
+    e.preventDefault();
+    if (confirm('Excluir esta meta? Esta acao nao pode ser desfeita.')) {
+        form.submit();
+    }
+});
+</script>
+{% endblock %}
