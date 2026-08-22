@@ -167,7 +167,7 @@ def inject_globals():
         'priorities': PRIORITIES,
         'current_user': get_current_user()
     }
-    @app.route('/register', methods=['GET', 'POST'])
+@app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         name = request.form['name'].strip()
