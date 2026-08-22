@@ -123,7 +123,7 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
-            flash('Fac,a login para acessar.', 'warning')
+            flash('Faca login para acessar.', 'warning')
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
@@ -142,7 +142,6 @@ def inject_globals():
         'current_user': get_current_user()
     }
 
-# ============ AUTENTICACAO ============
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -191,7 +190,6 @@ def logout():
     flash('Voce saiu.', 'info')
     return redirect(url_for('login'))
 
-# ============ ROTAS PRINCIPAIS ============
 @app.route('/')
 @login_required
 def index():
@@ -220,3 +218,187 @@ def index():
             'avg_progress': avg_progress
         }
     )
+
+@app.route('/goal/new', methods=['GET', 'POST'])
+@login_required
+def new_goal():
+    user = get_current_user()
+    if request.method == 'POST':
+        deadline_str = request.form.get('deadline', '').strip()
+        deadline = datetime.strptime(deadline_str, '%Y-%m-%d').date() if deadline_str else None
+        start_date_str = request.form.get('start_date', '').strip()
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
+        goal = Goal(
+            user_id=user.id,
+            title=request.form['title'].strip(),
+            description=request.form.get('description', '').strip(),
+            category=request.form.get('category', 'Pessoal'),
+            year=int(request.form.get('year', date.today().year)),
+            deadline=deadline,
+            start_date=start_date,
+            priority=request.form.get('priority', 'media')
+        )
+        db.session.add(goal)
+        db.session.flush()
+        for text in request.form.getlist('checklist[]'):
+            if text.strip():
+                db.session.add(ChecklistItem(goal_id=goal.id, text=text.strip()))
+        db.session.commit()
+        flash('Meta criada com sucesso!', 'success')
+        return redirect(url_for('index'))
+    return render_template('form.html', goal=None)
+
+@app.route('/goal/<int:goal_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_goal(goal_id):
+    user = get_current_user()
+    goal = Goal.query.filter_by(id=goal_id, user_id=user.id).first_or_404()
+    if request.method == 'POST':
+        deadline_str = request.form.get('deadline', '').strip()
+        goal.deadline = datetime.strptime(deadline_str, '%Y-%m-%d').date() if deadline_str else None
+        start_date_str = request.form.get('start_date', '').strip()
+        goal.start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
+        goal.title = request.form['title'].strip()
+        goal.description = request.form.get('description', '').strip()
+        goal.category = request.form.get('category', 'Pessoal')
+        goal.year = int(request.form.get('year', date.today().year))
+        goal.priority = request.form.get('priority', 'media')
+        ChecklistItem.query.filter_by(goal_id=goal.id).delete()
+        for text in request.form.getlist('checklist[]'):
+            if text.strip():
+                db.session.add(ChecklistItem(goal_id=goal.id, text=text.strip()))
+        db.session.commit()
+        flash('Meta atualizada!', 'success')
+        return redirect(url_for('index'))
+    return render_template('form.html', goal=goal)
+
+@app.route('/goal/<int:goal_id>/delete', methods=['POST'])
+@login_required
+def delete_goal(goal_id):
+    user = get_current_user()
+    goal = Goal.query.filter_by(id=goal_id, user_id=user.id).first_or_404()
+    db.session.delete(goal)
+    db.session.commit()
+    flash('Meta excluida.', 'info')
+    return redirect(url_for('index'))
+
+@app.route('/api/checklist/<int:item_id>/toggle', methods=['POST'])
+@login_required
+def toggle_checklist(item_id):
+    user = get_current_user()
+    item = ChecklistItem.query.join(Goal).filter(
+        ChecklistItem.id == item_id, Goal.user_id == user.id
+    ).first_or_404()
+    item.completed = not item.completed
+    db.session.commit()
+    return jsonify({
+        'completed': item.completed,
+        'progress': item.goal.progress,
+        'status': item.goal.status_label,
+        'status_class': item.goal.status_class,
+    })
+
+@app.route('/api/checklist/<int:item_id>/delete', methods=['POST'])
+@login_required
+def delete_checklist(item_id):
+    user = get_current_user()
+    item = ChecklistItem.query.join(Goal).filter(
+        ChecklistItem.id == item_id, Goal.user_id == user.id
+    ).first_or_404()
+    goal = item.goal
+    db.session.delete(item)
+    db.session.commit()
+    return jsonify({
+        'progress': goal.progress,
+        'status': goal.status_label,
+        'status_class': goal.status_class,
+    })
+
+@app.route('/api/goal/<int:goal_id>/checklist', methods=['POST'])
+@login_required
+def add_checklist_item(goal_id):
+    user = get_current_user()
+    goal = Goal.query.filter_by(id=goal_id, user_id=user.id).first_or_404()
+    text = request.json.get('text', '').strip()
+    if not text:
+        return jsonify({'error': 'Texto vazio'}), 400
+    item = ChecklistItem(goal_id=goal_id, text=text)
+    db.session.add(item)
+    db.session.commit()
+    return jsonify({
+        'id': item.id, 'text': item.text, 'completed': item.completed,
+        'progress': goal.progress,
+        'status': goal.status_label,
+        'status_class': goal.status_class,
+    })
+
+@app.route('/api/reminders/send', methods=['POST'])
+def send_reminders():
+    import smtplib
+    from email.mime.text import MIMEText
+
+    smtp_host = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
+    smtp_port = int(os.environ.get('SMTP_PORT', 587))
+    smtp_user = os.environ.get('SMTP_USER', '')
+    smtp_pass = os.environ.get('SMTP_PASS', '')
+    recipient = os.environ.get('REMINDER_EMAIL', '')
+
+    if not all([smtp_user, smtp_pass, recipient]):
+        return jsonify({'error': 'SMTP nao configurado'}), 500
+
+    soon = date.today() + timedelta(days=7)
+    upcoming = [g for g in Goal.query.filter(
+        Goal.deadline.isnot(None), Goal.deadline <= soon
+    ).all() if not g.is_completed and g.deadline >= date.today()]
+
+    overdue = [g for g in Goal.query.filter(
+        Goal.deadline.isnot(None), Goal.deadline < date.today()
+    ).all() if not g.is_completed]
+
+    if not upcoming and not overdue:
+        return jsonify({'message': 'Nenhum lembrete pendente.'})
+
+    html = '<h2>Lembrete de Metas</h2>'
+    if overdue:
+        html += '<h3 style="color:red">Atrasadas</h3><ul>'
+        for g in overdue:
+            html += f'<li><b>{g.title}</b> (vencia em {g.deadline.strftime("%d/%m/%Y")}) - {g.progress}%</li>'
+        html += '</ul>'
+    if upcoming:
+        html += '<h3 style="color:orange">Proximas do prazo</h3><ul>'
+        for g in upcoming:
+            html += f'<li><b>{g.title}</b> (vence em {g.deadline.strftime("%d/%m/%Y")}) - {g.progress}%</li>'
+        html += '</ul>'
+
+    msg = MIMEText(html, 'html')
+    msg['Subject'] = f'Lembrete de Metas - {date.today().strftime("%d/%m/%Y")}'
+    msg['From'] = smtp_user
+    msg['To'] = recipient
+
+    with smtplib.SMTP(smtp_host, smtp_port) as server:
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        server.send_message(msg)
+
+    return jsonify({'message': f'Lembretes enviados: {len(upcoming)} proximas, {len(overdue)} atrasadas.'})
+
+@app.route('/health')
+def health():
+    return jsonify({'status': 'ok'})
+
+@app.errorhandler(404)
+def not_found(e):
+    return redirect(url_for('index'))
+
+with app.app_context():
+    db.create_all()
+    from sqlalchemy import text, inspect
+    inspector = inspect(db.engine)
+    columns = [c['name'] for c in inspector.get_columns('goals')]
+    if 'start_date' not in columns:
+        db.session.execute(text('ALTER TABLE goals ADD COLUMN start_date DATE'))
+        db.session.commit()
+        print('Coluna start_date adicionada com sucesso!')
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
