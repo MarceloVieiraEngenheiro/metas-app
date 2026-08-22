@@ -58,6 +58,7 @@ class Goal(db.Model):
     category = db.Column(db.String(50), default='Pessoal')
     year = db.Column(db.Integer, nullable=False, default=date.today().year)
     deadline = db.Column(db.Date, nullable=True)
+    start_date = db.Column(db.Date, nullable=True)
     priority = db.Column(db.String(20), default='media')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
