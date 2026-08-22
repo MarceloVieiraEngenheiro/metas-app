@@ -110,21 +110,4 @@ class Goal(db.Model):
         return date.today() > deadline and self.progress < 100
 
     @property
-    def is_completed(self):
-        return self.progress == 100 and len(self.checklist_items) > 0
-
-    @property
-    def status_label(self):
-        if self.is_completed:
-            return 'Concluida'
-        if self.is_overdue:
-            return 'Atrasada'
-        if not self.start_date or date.today() < self.start_date:
-            return 'Nao iniciada'
-        if self.progress > 0 or self.time_progress > 0:
-            return 'Em andamento'
-        return 'Nao iniciada'
-
-    @property
-    def status_class(self):
-        if self.is_completed:
+    def
