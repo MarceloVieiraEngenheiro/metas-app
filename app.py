@@ -207,4 +207,16 @@ def index():
     if date.today().year not in years:
         years.insert(0, date.today().year)
     total = len(goals)
-    completed = sum(1 for g in goals if
+    completed = sum(1 for g in goals if g.is_completed)
+    in_progress = sum(1 for g in goals if 0 < g.progress < 100)
+    overdue = sum(1 for g in goals if g.is_overdue)
+    avg_progress = int(sum(g.progress for g in goals) / total) if total > 0 else 0
+    return render_template('index.html',
+        goals=goals, years=years, current_year=year,
+        current_category=category,
+        stats={
+            'total': total, 'completed': completed,
+            'in_progress': in_progress, 'overdue': overdue,
+            'avg_progress': avg_progress
+        }
+    )
